@@ -13,10 +13,14 @@
 # IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied.
 
+#You have to change this. No array handling was implemented as part of this.
+VLANs=(1 2 3 5 7 9)
+
 # Items you should probably change - Configurable by Argument 
-apicDefault='';             apic=''							# Can be a DNS name or IP depending on your environment
+apicDefault='';             apic=''					    # Can be a DNS name or IP depending on your environment
 userNameDefault='';         userName=''					# User Name to Logon to the APIC
-aepNameDefault=''           aepName=''	        # AEP Name for configuration
+epgPrefixDefault='';        epgPrefix=''				# We use this as a naming prefix
+BDPrefixDefault='';			BDPrefix=''					# Used as Bridge Domain prefix
 
 # Constants used through out the script
 aepDnPrefix='uni/infra/attentp-'; aepDn=''
@@ -43,6 +47,8 @@ showHelp() {
       -h               Display this help and exit
       --apic           IP or fqdn of APIC to be changed
       --user           Username to access APIC
+	  --epgPrefix	   Prefix used for EPG Names
+	  --BDPrefix	   Prefix used for BD Names
       -v               verbose mode. 
 EOF
 }
@@ -114,6 +120,18 @@ function writeStatus (){
   fi
 }
 
+function validateVLANs (){
+  #All values of VLANs must be integers because we use them for as the VLAN number and as part of the epg/BD names
+  for vlan in ${VLANs[@]};
+  do
+    if (( $vlan > 0 && $vlan <3967  )); then
+		writeStatus "VLAN ${vlan} is verified"
+	else
+		writeStatus "Entry ${vlan} is not an integer and will not work for this script." 'FAIL'
+    fi
+  done
+}
+
 #Log File Start
 if [ "${writeLog}" = 'enabled' ]; then
   printf 'Starting Log file' > $writeLogFile
@@ -129,14 +147,26 @@ while :; do
 		  if [ "$2" ]; then
 			  apic=$2
 				shift
-			fi
+		  fi
 		  ;;
 		--user)
 		  if [ "$2" ]; then
 			  userName=$2
 				shift
-			fi
-			;;
+	      fi
+		  ;;
+		--epgPrefix)
+		  if [ "$2" ]; then
+			  epgPrefix=$2
+			    shift
+          fi
+		  ;;
+		--BDPrefix)
+		  if [ "$2" ]; then
+		      BDPrefix=$2
+			  	shift
+		  fi
+		  ;;
 		-v|--verbose)
 		  verbose=$((verbose + 1))
 		  ;;
@@ -150,7 +180,7 @@ done
 if [[ ( -z ${apic} && -n ${apicDefault} ) ]]; then
   apic=$apicDefault
 elif [[ -z ${apic} ]]; then
-  writeStatus "Required value (APIC) not present" 'FAIL'
+  writeStatus "Required value (apic) not present" 'FAIL'
 fi
 
 if [[ ( -z ${userName} && -n ${userNameDefault} ) ]]; then
@@ -159,17 +189,35 @@ elif [[ -z ${userName} ]]; then
   writeStatus "Required value (user) not present" 'FAIL'
 fi
 
+if [[ ( -z ${egpPrefix} && -n ${epgPrefixDefault} ) ]]; then
+  epgPrefix=$epgPrefixDefault
+elif [[ -z ${epgPrefix} ]]; then
+  writeStatus "Required value (epgPrefix) not present" 'FAIL'
+fi
+
+if [[ ( -z ${BDPrefix} && -n ${BDPrefixDefault} ) ]]; then
+  BDPrefix=$BDPrefixDefault
+elif [[ -z ${BDPrefix} ]]; then
+  writeStatus "Required value (BDPrefix) not present" 'FAIL'
+fi
+
 writeStatus "APIC Value: \t\t${apic}"
 writeStatus "userName Value: \t${userName}"
 writeStatus "verbose Value:\t\t${verbose}"
-
+writeStatus "epgPrefix Value: \t${epgPrefix}"
+writeStatus "BDPrefix Value: \t${BDPrefix}"
 #Get cookie
+
+validateVLANs
+exitRoutine
 
 getCookie
 
 #TODO Use this for access.
 #accessAPIC 'POST' "https://${apic}/api/node/mo/uni/infra/funcprof.xml" "${breakoutPolicyXML}"
-
+#TODO VLAN List format.
+#TODO Cycle through VLAN list
+#TODO Create bridge domain and EPG based on template. 
 
 #Removing the cookie used for access to the APIC
 exitRoutine
