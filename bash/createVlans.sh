@@ -20,10 +20,10 @@ VLANs=(1 2 4)
 apicDefault='';             apic=''					    # Can be a DNS name or IP depending on your environment
 userNameDefault='';         userName=''					# User Name to Logon to the APIC
 epgPrefixDefault='';        epgPrefix=''				# We use this as a naming prefix
-BDPrefixDefault='';			    BDPrefix=''					# Used as Bridge Domain prefix
-vrfNameDefault='';			    vrfName=''					# We need to know what vrf to build the bridge domain to.
+BDPrefixDefault='';         BDPrefix=''					# Used as Bridge Domain prefix
+vrfNameDefault='';          vrfName=''					# We need to know what vrf to build the bridge domain to.
 tenantNameDefault='';       tenantName=''				# Tenant to create epgs and Bridge Domains in.
-apNameDefault='';			      apName=''					  # App where EPG gets created.
+apNameDefault='';           apName=''					  # App where EPG gets created.
 
 #These are defaults for the bridge domain. You can change them, but you should understand them before you do.
 
@@ -106,10 +106,10 @@ function accessAPIC () {
 	exitRoutine
   fi
   if [ "${writeLog}" = 'enabled' ]; then
-    printf "Type: ${1}" >> $writeLogFile
-	printf "URL: ${2}" >> $writeLogFile		
-	printf "XML Sent:\n${3}\n\n" >> $writeLogFile
-	printf "XML Result:\n${XMLResult}\n\n" >> $writeLogFile
+  printf "\nType: ${1}" >> $writeLogFile
+	printf "\nURL:  ${2}" >> $writeLogFile		
+	printf "\nXML Sent:\n${3}\n\n" >> $writeLogFile
+	printf "\nXML Result:\n${XMLResult}\n\n" >> $writeLogFile
   fi
 
 }
@@ -295,8 +295,8 @@ writeStatus "verbose Value:\t\t${verbose}"
 writeStatus "epgPrefix Value: \t${epgPrefix}"
 writeStatus "BDPrefix Value: \t${BDPrefix}"
 writeStatus "BDPrefix Value: \t${vrfName}"
-writeStatus "tenantName Value: \t ${tenantName}"
-writeStatus "apName Value: \t\t ${apName}"
+writeStatus "tenantName Value: \t${tenantName}"
+writeStatus "apName Value: \t\t${apName}"
 #Get cookie
 
 validateVLANs
