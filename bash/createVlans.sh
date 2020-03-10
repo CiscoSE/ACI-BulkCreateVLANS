@@ -20,19 +20,25 @@ VLANs=(1 2 4)
 apicDefault='';             apic=''					    # Can be a DNS name or IP depending on your environment
 userNameDefault='';         userName=''					# User Name to Logon to the APIC
 epgPrefixDefault='';        epgPrefix=''				# We use this as a naming prefix
-BDPrefixDefault='';			BDPrefix=''					# Used as Bridge Domain prefix
-vrfNameDefault='';			vrfName=''					# We need to know what vrf to build the bridge domain to.
+BDPrefixDefault='';			    BDPrefix=''					# Used as Bridge Domain prefix
+vrfNameDefault='';			    vrfName=''					# We need to know what vrf to build the bridge domain to.
 tenantNameDefault='';       tenantName=''				# Tenant to create epgs and Bridge Domains in.
-appNameDefault='';					appName=''					# App where EPG gets created.
+apNameDefault='';			      apName=''					  # App where EPG gets created.
 
 #These are defaults for the bridge domain. You can change them, but you should understand them before you do.
 
-arpFlood='yes'			#Only other option is no
-epMoveDetectMode='garp' #Helps when ACI detects VM traffic moving between switches.
-ipLearning='yes'		#Allows for finding end points by IP address in ACI
-limitIpLearnToSubnets="no" #We will learn the IP even if it is not on the right subnet. 
-unkMacUcastAct="flood"  # Flood for unknown unicast. 
+arpFlood='yes'			        #Only other option is no
+epMoveDetectMode='garp'     #Helps when ACI detects VM traffic moving between switches.
+ipLearning='yes'		        #Allows for finding end points by IP address in ACI
+limitIpLearnToSubnets="no"  #We will learn the IP even if it is not on the right subnet. 
+unkMacUcastAct="flood"      #Flood for unknown unicast. 
 
+
+#These are defaults for the EPG. You can change them, but you should understand them before you do.
+
+floodOnEncap="disabled"
+matchT="AtleastOne"
+pcEnfPref="unenforced"
 
 #Debug Variables
 writeLogFile="./$(date +%Y%m%d-%H%M%S)-xmlLogFile.log"	#Time stamped file name.
@@ -53,15 +59,15 @@ showHelp() {
 
   Where:
 
-      -h               Display this help and exit
-      --apic           IP or fqdn of APIC to be changed
-      --user           Username to access APIC
-	  --epgPrefix	   Prefix used for EPG Names
-	  --BDPrefix	   Prefix used for BD Names
-	  --vrfName		   vrf bridge domains should use
-	  --tenantName	   Name of Tenant for EGPs and BDs
-	  --appName
-      -v               verbose mode. 
+    -h                  Display this help and exit
+    --apic              IP or fqdn of APIC to be changed
+    --user              Username to access APIC
+	  --epgPrefix	        Prefix used for EPG Names
+	  --BDPrefix	        Prefix used for BD Names
+	  --vrfName		        vrf bridge domains should use
+	  --tenantName	      Name of Tenant for EGPs and BDs
+	  --apName            Name of Application where EPG is created.
+      -v                verbose mode. 
 EOF
 }
 
@@ -157,8 +163,13 @@ EOV
 function createEpg (){
   writeStatus "\tCreating EPG ${epgPrefix}${vlan}"
   read -r -d '' epgTemplate << EOV
-  
+  <fvAEPg annotation="" descr="" exceptionTag="" floodOnEncap="${floodOnEncap}" fwdCtrl="" matchT="${matchT}" name="${epgPrefix}${vlan}" pcEnfPref="${pcEnfPref}" shutdown="no">
+        <fvRsBd annotation="" tnFvBDName="${BDPrefix}${vlan}"/>
+        <fvRsCustQosPol annotation="" tnQosCustomPolName=""/>
+  </fvAEPg>
 EOV
+
+accessAPIC 'POST' "https://${apic}/api/node/mo/uni/tn-${tenantName}/ap-${apName}.xml" "${epgTemplate}" 'TRUE'
 
 }
 
@@ -168,6 +179,7 @@ function main (){
     writeStatus "Processing VLAN ${vlan}"
     #Create Bridge Domain
     createBridgeDomain
+    createEpg
   done
 
 }
@@ -219,9 +231,9 @@ while :; do
 			    shift
           fi
           ;;
-        --appName)
+        --apName)
 		  if [ "$2" ]; then
-		      appName=$2
+		      apName=$2
 			    shift
           fi
 		  ;;
@@ -271,10 +283,10 @@ elif [[ -z ${tenantName} ]]; then
   writeStatus "Required value (tenantName) not present" 'FAIL'
 fi
 
-if [[ ( -z ${appName} && -n ${appNameDefault} ) ]]; then
-  appName=$appNameDefault
-elif [[ -z ${appName} ]]; then
-  writeStatus "Required value (appName) not present" 'FAIL'
+if [[ ( -z ${apName} && -n ${apNameDefault} ) ]]; then
+  apName=$apNameDefault
+elif [[ -z ${apName} ]]; then
+  writeStatus "Required value (apName) not present" 'FAIL'
 fi
 
 writeStatus "APIC Value: \t\t${apic}"
@@ -284,7 +296,7 @@ writeStatus "epgPrefix Value: \t${epgPrefix}"
 writeStatus "BDPrefix Value: \t${BDPrefix}"
 writeStatus "BDPrefix Value: \t${vrfName}"
 writeStatus "tenantName Value: \t ${tenantName}"
-writeStatus "appName Value: \t\t ${appName}"
+writeStatus "apName Value: \t\t ${apName}"
 #Get cookie
 
 validateVLANs
