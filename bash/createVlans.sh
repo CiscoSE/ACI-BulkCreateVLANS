@@ -23,6 +23,7 @@ epgPrefixDefault='';        epgPrefix=''				# We use this as a naming prefix
 BDPrefixDefault='';			BDPrefix=''					# Used as Bridge Domain prefix
 vrfNameDefault='';			vrfName=''					# We need to know what vrf to build the bridge domain to.
 tenantNameDefault='';       tenantName=''				# Tenant to create epgs and Bridge Domains in.
+appNameDefault='';					appName=''					# App where EPG gets created.
 
 #These are defaults for the bridge domain. You can change them, but you should understand them before you do.
 
@@ -58,7 +59,8 @@ showHelp() {
 	  --epgPrefix	   Prefix used for EPG Names
 	  --BDPrefix	   Prefix used for BD Names
 	  --vrfName		   vrf bridge domains should use
-	  --TenantName	   Name of Tenant for EGPs and BDs
+	  --tenantName	   Name of Tenant for EGPs and BDs
+	  --appName
       -v               verbose mode. 
 EOF
 }
@@ -152,6 +154,13 @@ EOV
   accessAPIC 'POST' "https://${apic}/api/node/mo/uni/tn-${tenantName}.xml" "${bridgeDomainTemplate}"
 }
 
+function createEpg (){
+  writeStatus "\tCreating EPG ${epgPrefix}${vlan}"
+  read -r -d '' epgTemplate << EOV
+  
+EOV
+
+}
 
 function main (){
   #Loop through VLANs
@@ -210,6 +219,12 @@ while :; do
 			    shift
           fi
           ;;
+        --appName)
+		  if [ "$2" ]; then
+		      appName=$2
+			    shift
+          fi
+		  ;;
 		-v|--verbose)
 		  verbose=$((verbose + 1))
 		  ;;
@@ -256,6 +271,11 @@ elif [[ -z ${tenantName} ]]; then
   writeStatus "Required value (tenantName) not present" 'FAIL'
 fi
 
+if [[ ( -z ${appName} && -n ${appNameDefault} ) ]]; then
+  appName=$appNameDefault
+elif [[ -z ${appName} ]]; then
+  writeStatus "Required value (appName) not present" 'FAIL'
+fi
 
 writeStatus "APIC Value: \t\t${apic}"
 writeStatus "userName Value: \t${userName}"
@@ -264,6 +284,7 @@ writeStatus "epgPrefix Value: \t${epgPrefix}"
 writeStatus "BDPrefix Value: \t${BDPrefix}"
 writeStatus "BDPrefix Value: \t${vrfName}"
 writeStatus "tenantName Value: \t ${tenantName}"
+writeStatus "appName Value: \t\t ${appName}"
 #Get cookie
 
 validateVLANs
