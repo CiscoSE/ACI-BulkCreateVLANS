@@ -169,7 +169,7 @@ function createEpg (){
   </fvAEPg>
 EOV
 
-accessAPIC 'POST' "https://${apic}/api/node/mo/uni/tn-${tenantName}/ap-${apName}.xml" "${epgTemplate}" 'TRUE'
+accessAPIC 'POST' "https://${apic}/api/node/mo/uni/tn-${tenantName}/ap-${apName}.xml" "${epgTemplate}"
 
 }
 
