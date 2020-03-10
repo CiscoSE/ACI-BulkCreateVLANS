@@ -13,17 +13,25 @@
 # IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied.
 
-#You have to change this. No array handling was implemented as part of this.
-VLANs=(1 2 3 5 7 9)
+#You have to change this. No array handling was implemented as part of arguments 
+VLANs=(1 2 4)
 
 # Items you should probably change - Configurable by Argument 
 apicDefault='';             apic=''					    # Can be a DNS name or IP depending on your environment
 userNameDefault='';         userName=''					# User Name to Logon to the APIC
 epgPrefixDefault='';        epgPrefix=''				# We use this as a naming prefix
 BDPrefixDefault='';			BDPrefix=''					# Used as Bridge Domain prefix
+vrfNameDefault='';			vrfName=''					# We need to know what vrf to build the bridge domain to.
+tenantNameDefault='';       tenantName=''				# Tenant to create epgs and Bridge Domains in.
 
-# Constants used through out the script
-aepDnPrefix='uni/infra/attentp-'; aepDn=''
+#These are defaults for the bridge domain. You can change them, but you should understand them before you do.
+
+arpFlood='yes'			#Only other option is no
+epMoveDetectMode='garp' #Helps when ACI detects VM traffic moving between switches.
+ipLearning='yes'		#Allows for finding end points by IP address in ACI
+limitIpLearnToSubnets="no" #We will learn the IP even if it is not on the right subnet. 
+unkMacUcastAct="flood"  # Flood for unknown unicast. 
+
 
 #Debug Variables
 writeLogFile="./$(date +%Y%m%d-%H%M%S)-xmlLogFile.log"	#Time stamped file name.
@@ -49,6 +57,8 @@ showHelp() {
       --user           Username to access APIC
 	  --epgPrefix	   Prefix used for EPG Names
 	  --BDPrefix	   Prefix used for BD Names
+	  --vrfName		   vrf bridge domains should use
+	  --TenantName	   Name of Tenant for EGPs and BDs
       -v               verbose mode. 
 EOF
 }
@@ -81,14 +91,14 @@ function accessAPIC () {
   fi
   #used only for debuging
   if [ "${4}" = 'TRUE' ]; then
-	printf "Type: ${1}"
-	printf "URL: ${2}"
-	printf "XML Sent:\n${3}\n\n"
-	printf "XML Result:\n${XMLResult}\n\n"
+	printf "\nType: ${1}"
+	printf "\nURL: ${2}"
+	printf "\nXML Sent:\n${3}\n\n"
+	printf "\nXML Result:\n${XMLResult}\n\n"
 	exitRoutine
   fi
   if [ "${writeLog}" = 'enabled' ]; then
-    	printf "Type: ${1}" >> $writeLogFile
+    printf "Type: ${1}" >> $writeLogFile
 	printf "URL: ${2}" >> $writeLogFile		
 	printf "XML Sent:\n${3}\n\n" >> $writeLogFile
 	printf "XML Result:\n${XMLResult}\n\n" >> $writeLogFile
@@ -132,6 +142,27 @@ function validateVLANs (){
   done
 }
 
+function createBridgeDomain (){
+  writeStatus "\tCreating Bridge Domain ${BDPrefix}${vlan}"
+  read -r -d '' bridgeDomainTemplate << EOV
+    <fvBD name="${BDPrefix}${vlan}" arpFlood="${arpFlood}" epClear="no" epMoveDetectMode="${epMoveDetectMode}" ipLearning="${ipLearning}" limitIpLearnToSubnets="${limitIpLearnToSubnets}" unkMacUcastAct="${unkMacUcastAct}" >
+    <fvRsCtx tnFvCtxName="${vrfName}" />     
+    </fvBD>
+EOV
+  accessAPIC 'POST' "https://${apic}/api/node/mo/uni/tn-${tenantName}.xml" "${bridgeDomainTemplate}"
+}
+
+
+function main (){
+  #Loop through VLANs
+  for vlan in ${VLANs[@]}; do
+    writeStatus "Processing VLAN ${vlan}"
+    #Create Bridge Domain
+    createBridgeDomain
+  done
+
+}
+
 #Log File Start
 if [ "${writeLog}" = 'enabled' ]; then
   printf 'Starting Log file' > $writeLogFile
@@ -167,6 +198,18 @@ while :; do
 			  	shift
 		  fi
 		  ;;
+        --vrfName)
+		  if [ "$2" ]; then
+		      vrfName=$2
+			    shift
+          fi
+		  ;;
+		--tenantName)
+		  if [ "$2" ]; then
+		      tenantName=$2
+			    shift
+          fi
+          ;;
 		-v|--verbose)
 		  verbose=$((verbose + 1))
 		  ;;
@@ -201,18 +244,31 @@ elif [[ -z ${BDPrefix} ]]; then
   writeStatus "Required value (BDPrefix) not present" 'FAIL'
 fi
 
+if [[ ( -z ${vrfName} && -n ${vrfNameDefault} ) ]]; then
+  vrfName=$vrfNameDefault
+elif [[ -z ${vrfName} ]]; then
+  writeStatus "Required value (vrfName) not present" 'FAIL'
+fi
+
+if [[ ( -z ${TenantName} && -n ${tenantNameDefault} ) ]]; then
+  tenantName=$tenantNameDefault
+elif [[ -z ${tenantName} ]]; then
+  writeStatus "Required value (tenantName) not present" 'FAIL'
+fi
+
+
 writeStatus "APIC Value: \t\t${apic}"
 writeStatus "userName Value: \t${userName}"
 writeStatus "verbose Value:\t\t${verbose}"
 writeStatus "epgPrefix Value: \t${epgPrefix}"
 writeStatus "BDPrefix Value: \t${BDPrefix}"
+writeStatus "BDPrefix Value: \t${vrfName}"
+writeStatus "tenantName Value: \t ${tenantName}"
 #Get cookie
 
 validateVLANs
-exitRoutine
-
 getCookie
-
+main
 #TODO Use this for access.
 #accessAPIC 'POST' "https://${apic}/api/node/mo/uni/infra/funcprof.xml" "${breakoutPolicyXML}"
 #TODO VLAN List format.
