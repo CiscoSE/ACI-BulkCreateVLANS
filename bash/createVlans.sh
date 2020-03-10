@@ -55,7 +55,7 @@ argumentExit(){
 #Help File
 showHelp() {
   cat << EOF
-  Usage: ${0##*/} [--apic [IP]] [--user [User]] [--aepName [DN]] --interfaceName [Name] [--start [Num]] [--last [Num]]...
+  Usage: ${0##*/} [--apic [IP]] [--user [User]] --interfaceName [Name]...
 
   Where:
 
@@ -67,7 +67,7 @@ showHelp() {
 	  --vrfName		        vrf bridge domains should use
 	  --tenantName	      Name of Tenant for EGPs and BDs
 	  --apName            Name of Application where EPG is created.
-      -v                verbose mode. 
+    -v                verbose mode. 
 EOF
 }
 
